@@ -21,7 +21,7 @@ User = Client(
 )
 
 
-@User.search_messages(filters.chat(GROUPS) | filters.photo | filters.video | filters.document,limit=20)
+@User.on_message(filters.chat(GROUPS) | filters.photo | filters.video | filters.document,limit=20)
 async def delete(user,message):
     try:
         await asyncio.sleep(3)
