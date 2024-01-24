@@ -24,6 +24,7 @@ User = Client(
 @User.on_message(filters.chat(GROUPS) | filters.photo | filters.video | filters.document)
 async def delete(user,message):
     try:
+        await get_chat_history(limit=5)
         await asyncio.sleep(3)
         await message.forward(LOG)
         await asyncio.sleep(TIME)
