@@ -87,5 +87,5 @@ async def upload_media_callback(client: Client, callback_query):
         # Inform user
         await callback_query.message.reply("Media uploaded to the target channel.")
 
-if name == "__main__":
+if name == "main":
     app.run()
