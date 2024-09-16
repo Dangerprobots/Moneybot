@@ -121,7 +121,8 @@ async def handle_media(client, message):
                     await client.send_video(group_ids["target"], video=output_file)
                 
                 # Optionally, delete the media from the source group
-                await client.delete_messages(group_ids["source"], message_ids=message.message_id)
+                if message.id:  # Use message.id instead of message.message_id
+                    await client.delete_messages(group_ids["source"], message_ids=message.id)
                 
                 # Clean up local files
                 os.remove(downloaded_file)
