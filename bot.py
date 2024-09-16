@@ -64,7 +64,9 @@ def add_watermark_image(input_image_path, output_image_path, watermark_text):
         
         # Add watermark text
         font = ImageFont.load_default()
-        text_width, text_height = draw.textsize(watermark_text, font)
+        bbox = draw.textbbox((0, 0), watermark_text, font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
         position = (im.size[0] - text_width - 10, im.size[1] - text_height - 10)
         draw.text(position, watermark_text, fill=(255, 255, 255, 128), font=font)
         
@@ -86,7 +88,9 @@ def add_watermark_video(input_video_path, output_video_path, watermark_text):
             
             # Add watermark text
             font = ImageFont.load_default()
-            text_width, text_height = draw.textsize(watermark_text, font)
+            bbox = draw.textbbox((0, 0), watermark_text, font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
             position = (img.size[0] - text_width - 10, img.size[1] - text_height - 10)
             draw.text(position, watermark_text, fill=(255, 255, 255, 128), font=font)
             
