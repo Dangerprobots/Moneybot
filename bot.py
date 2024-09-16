@@ -103,7 +103,11 @@ def add_watermark_video(input_video_path, output_video_path, watermark_text):
     try:
         clip = VideoFileClip(input_video_path)
         watermarked_clip = clip.fl_image(watermark_frame)
-        watermarked_clip.write_videofile(output_video_path, codec='libx264')
+        # Ensure the output directory exists
+        output_dir = os.path.dirname(output_video_path)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        watermarked_clip.write_videofile(output_video_path, codec='libx264', audio_codec='aac')
         print(f"Video saved successfully: {output_video_path}")  # Debugging line
     except Exception as e:
         print(f"Error processing video: {e}")  # Debugging line
