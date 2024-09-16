@@ -61,6 +61,7 @@ async def handle_pm(client, message):
                 await message.reply_text(f"Source Group Info: {chat}")
             except Exception as e:
                 await message.reply_text(f"Error fetching source group info: {e}")
+                logger.error(f"Error fetching source group info: {e}")
     
     elif text.startswith("/checktarget"):
         if group_ids["target"]:
@@ -69,6 +70,7 @@ async def handle_pm(client, message):
                 await message.reply_text(f"Target Group Info: {chat}")
             except Exception as e:
                 await message.reply_text(f"Error fetching target group info: {e}")
+                logger.error(f"Error fetching target group info: {e}")
 
 def add_watermark_image(input_image_path, output_image_path, watermark_text):
     """
