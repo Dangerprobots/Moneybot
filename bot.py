@@ -3,6 +3,11 @@ from pyrogram.types import Message
 from PIL import Image, ImageDraw, ImageFont
 import os
 import json
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Your provided API credentials
 api_id = "1474940"
@@ -33,6 +38,7 @@ async def handle_pm(client, message: Message):
         return
 
     text = message.text.strip()
+    logger.info(f"Received PM: {text}")
 
     if text.startswith("/set_source"):
         parts = text.split()
@@ -40,8 +46,8 @@ async def handle_pm(client, message: Message):
             _, group_id = parts
             try:
                 group_ids['source_group_id'] = int(group_id)
-                await message.reply(f"Source group ID set to {group_id}")
                 save_group_ids()
+                await message.reply(f"Source group ID set to {group_id}")
             except ValueError:
                 await message.reply("Invalid group ID format. It should be a number.")
         else:
@@ -53,8 +59,8 @@ async def handle_pm(client, message: Message):
             _, group_id = parts
             try:
                 group_ids['destination_group_id'] = int(group_id)
-                await message.reply(f"Destination group ID set to {group_id}")
                 save_group_ids()
+                await message.reply(f"Destination group ID set to {group_id}")
             except ValueError:
                 await message.reply("Invalid group ID format. It should be a number.")
         else:
@@ -85,42 +91,55 @@ def save_group_ids():
 @app.on_message(filters.chat(lambda c: c.id == group_ids.get('source_group_id')) & filters.media)
 async def handle_media(client, message: Message):
     if not group_ids['source_group_id'] or not group_ids['destination_group_id']:
+        logger.warning("Group IDs are not set properly.")
         return
 
     media = message.photo or message.video or message.document
     if media:
         file_id = media.file_id
-        # Download media
-        downloaded_media = await app.download_media(file_id)
+        try:
+            # Download media
+            downloaded_media = await app.download_media(file_id)
+            logger.info(f"Downloaded media: {downloaded_media}")
 
-        # Add watermark
-        watermarked_media_path = add_watermark(downloaded_media)
+            # Add watermark
+            watermarked_media_path = add_watermark(downloaded_media)
+            logger.info(f"Watermarked media saved at: {watermarked_media_path}")
 
-        # Send media to the destination group
-        await app.send_document(group_ids['destination_group_id'], watermarked_media_path)
+            # Send media to the destination group
+            await app.send_document(group_ids['destination_group_id'], watermarked_media_path)
+            logger.info("Media sent to destination group.")
 
-        # Delete the original message
-        await app.delete_messages(group_ids['source_group_id'], message.message_id)
+            # Delete the original message
+            await app.delete_messages(group_ids['source_group_id'], message.message_id)
+            logger.info("Original message deleted.")
+
+        except Exception as e:
+            logger.error(f"Error handling media: {e}")
 
 def add_watermark(media_path):
     if media_path.lower().endswith(('.png', '.jpg', '.jpeg')):
-        with Image.open(media_path) as img:
-            # Create a drawing context
-            draw = ImageDraw.Draw(img)
-            # Define watermark text and font
-            watermark_text = "Your Watermark"
-            font = ImageFont.load_default()
-            text_width, text_height = draw.textsize(watermark_text, font)
-            # Position watermark in bottom-right corner
-            width, height = img.size
-            x = width - text_width - 10
-            y = height - text_height - 10
-            # Add text to image
-            draw.text((x, y), watermark_text, font=font)
-            # Save watermarked image
-            watermarked_path = "watermarked_" + os.path.basename(media_path)
-            img.save(watermarked_path)
-            return watermarked_path
+        try:
+            with Image.open(media_path) as img:
+                # Create a drawing context
+                draw = ImageDraw.Draw(img)
+                # Define watermark text and font
+                watermark_text = "Your Watermark"
+                font = ImageFont.load_default()
+                text_width, text_height = draw.textsize(watermark_text, font)
+                # Position watermark in bottom-right corner
+                width, height = img.size
+                x = width - text_width - 10
+                y = height - text_height - 10
+                # Add text to image
+                draw.text((x, y), watermark_text, font=font)
+                # Save watermarked image
+                watermarked_path = "watermarked_" + os.path.basename(media_path)
+                img.save(watermarked_path)
+                return watermarked_path
+        except Exception as e:
+            logger.error(f"Error adding watermark: {e}")
+            return media_path  # Return original path if there's an error
     else:
         # For simplicity, this example does not handle video watermarking
         return media_path  # Return the original path if not an image
