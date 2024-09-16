@@ -127,7 +127,7 @@ async def handle_media(client, message):
                 
                 # Delete original message
                 if message.message_id:  # Corrected message ID attribute
-                    await client.delete_messages(group_ids["source"], message_ids=message.message_id)
+                    await client.delete_messages(group_ids["source"], message_ids=[message.message_id])
                 
                 # Clean up local files
                 os.remove(downloaded_file)
