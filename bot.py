@@ -1,4 +1,3 @@
-#Dangerprobots 
 import asyncio
 import logging
 from pyrogram import Client, filters
@@ -34,10 +33,10 @@ async def add_watermark(image: Image.Image, text: str) -> Image.Image:
 
 @app.on_message(filters.private & filters.user(OWNER_ID))
 async def handle_owner_commands(client: Client, message: Message):
-    logging.info("Received message: %s", message)
-
+    logging.info("Received owner command: %s", message.text)
+    
     if not message.text:
-        logging.warning("Received message with no text: %s", message)
+        logging.warning("Received message with no text.")
         return
 
     if message.text.startswith("/setsource"):
@@ -59,10 +58,11 @@ async def handle_owner_commands(client: Client, message: Message):
 @app.on_message(filters.chat(lambda c: c.username == source_group) & filters.media)
 async def handle_media(client: Client, message: Message):
     if not target_group:
+        logging.warning("Target group not set. Please set it using the /settarget command.")
         await message.reply("Target group is not set. Please set it using the /settarget command in PM.")
         return
     
-    logging.info("Received media: %s", message)
+    logging.info("Received media in source group: %s", message)
     
     try:
         file_path = await client.download_media(message)
@@ -91,6 +91,7 @@ async def upload_media_callback(client: Client, callback_query):
     
     message = callback_query.message
     if not target_group:
+        logging.warning("Target group not set. Please set it using the /settarget command.")
         await callback_query.message.reply("Target group is not set. Please set it using the /settarget command in PM.")
         return
 
