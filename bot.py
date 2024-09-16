@@ -33,28 +33,43 @@ async def handle_pm(client, message: Message):
         return
 
     text = message.text.strip()
-    
+
     if text.startswith("/set_source"):
-        _, group_id = text.split()
-        group_ids['source_group_id'] = int(group_id)
-        await message.reply(f"Source group ID set to {group_id}")
-        
+        parts = text.split()
+        if len(parts) == 2:
+            _, group_id = parts
+            try:
+                group_ids['source_group_id'] = int(group_id)
+                await message.reply(f"Source group ID set to {group_id}")
+                save_group_ids()
+            except ValueError:
+                await message.reply("Invalid group ID format. It should be a number.")
+        else:
+            await message.reply("Usage: /set_source <group_id>")
+
     elif text.startswith("/set_destination"):
-        _, group_id = text.split()
-        group_ids['destination_group_id'] = int(group_id)
-        await message.reply(f"Destination group ID set to {group_id}")
-        
+        parts = text.split()
+        if len(parts) == 2:
+            _, group_id = parts
+            try:
+                group_ids['destination_group_id'] = int(group_id)
+                await message.reply(f"Destination group ID set to {group_id}")
+                save_group_ids()
+            except ValueError:
+                await message.reply("Invalid group ID format. It should be a number.")
+        else:
+            await message.reply("Usage: /set_destination <group_id>")
+
     elif text == "/get_ids":
         source_id = group_ids.get('source_group_id', 'Not set')
         destination_id = group_ids.get('destination_group_id', 'Not set')
         response = f"Source Group ID: {source_id}\nDestination Group ID: {destination_id}"
         await message.reply(response)
-    
+
     elif text == "/save_ids":
-        with open("group_ids.json", "w") as f:
-            json.dump(group_ids, f)
+        save_group_ids()
         await message.reply("Group IDs saved to file.")
-    
+
     elif text == "/load_ids":
         try:
             with open("group_ids.json", "r") as f:
@@ -62,6 +77,10 @@ async def handle_pm(client, message: Message):
             await message.reply("Group IDs loaded from file.")
         except FileNotFoundError:
             await message.reply("No saved file found.")
+
+def save_group_ids():
+    with open("group_ids.json", "w") as f:
+        json.dump(group_ids, f)
 
 @app.on_message(filters.chat(lambda c: c.id == group_ids.get('source_group_id')) & filters.media)
 async def handle_media(client, message: Message):
@@ -92,7 +111,7 @@ def add_watermark(media_path):
             watermark_text = "Your Watermark"
             font = ImageFont.load_default()
             text_width, text_height = draw.textsize(watermark_text, font)
-            # Positioning watermark in bottom-right corner
+            # Position watermark in bottom-right corner
             width, height = img.size
             x = width - text_width - 10
             y = height - text_height - 10
