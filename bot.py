@@ -23,11 +23,16 @@ group_ids = {
 }
 
 # Load stored group IDs from a file if it exists
-try:
-    with open("group_ids.json", "r") as f:
-        group_ids.update(json.load(f))
-except FileNotFoundError:
-    logger.info("No saved group IDs file found.")
+def load_group_ids():
+    global group_ids
+    try:
+        with open("group_ids.json", "r") as f:
+            group_ids.update(json.load(f))
+        logger.info("Group IDs loaded from file.")
+    except FileNotFoundError:
+        logger.info("No saved group IDs file found.")
+
+load_group_ids()
 
 @app.on_message(filters.private & filters.text)
 async def handle_pm(client, message: Message):
@@ -77,12 +82,8 @@ async def handle_pm(client, message: Message):
         await message.reply("Group IDs saved to file.")
 
     elif text == "/load_ids":
-        try:
-            with open("group_ids.json", "r") as f:
-                group_ids.update(json.load(f))
-            await message.reply("Group IDs loaded from file.")
-        except FileNotFoundError:
-            await message.reply("No saved file found.")
+        load_group_ids()
+        await message.reply("Group IDs loaded from file.")
 
 def save_group_ids():
     with open("group_ids.json", "w") as f:
@@ -98,10 +99,11 @@ async def handle_media(client, message: Message):
     media = message.photo or message.video or message.document
     if media:
         file_id = media.file_id
+        logger.info(f"Processing media file ID: {file_id}")
         try:
             # Download media
             downloaded_media = await app.download_media(file_id)
-            logger.info(f"Downloaded media: {downloaded_media}")
+            logger.info(f"Downloaded media to: {downloaded_media}")
 
             # Check if the file exists before processing
             if not os.path.exists(downloaded_media):
