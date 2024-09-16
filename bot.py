@@ -53,6 +53,22 @@ async def handle_pm(client, message):
             await message.reply_text("Please provide a group ID after the command.")
         except ValueError:
             await message.reply_text("Invalid group ID format. Please provide a numeric ID.")
+    
+    elif text.startswith("/checksource"):
+        if group_ids["source"]:
+            try:
+                chat = await client.get_chat(group_ids["source"])
+                await message.reply_text(f"Source Group Info: {chat}")
+            except Exception as e:
+                await message.reply_text(f"Error fetching source group info: {e}")
+    
+    elif text.startswith("/checktarget"):
+        if group_ids["target"]:
+            try:
+                chat = await client.get_chat(group_ids["target"])
+                await message.reply_text(f"Target Group Info: {chat}")
+            except Exception as e:
+                await message.reply_text(f"Error fetching target group info: {e}")
 
 def add_watermark_image(input_image_path, output_image_path, watermark_text):
     """
@@ -126,6 +142,11 @@ async def handle_media(client, message):
     if group_ids["source"] and group_ids["target"]:
         if message.chat.id == group_ids["source"] and message.media:
             try:
+                # Debugging: Print the group ID
+                print(f"Source Group ID: {group_ids['source']}")
+                print(f"Target Group ID: {group_ids['target']}")
+                print(f"Message Chat ID: {message.chat.id}")
+
                 # Download the media file
                 downloaded_file = await client.download_media(message, file_name="downloaded_media")
                 output_file = "watermarked_media"
