@@ -3,13 +3,12 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from PIL import Image, ImageDraw, ImageFont
 import io
-import os
 
 # Replace these with your values
 API_ID = '5282591'
 API_HASH = 'd416fe4e323d0e2b4616fef68a8ddd63'
 BOT_TOKEN = '7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI'
-OWNER_ID = 6248131995 # Replace with the actual user ID of the bot owner
+OWNER_ID = 6248131995  # Replace with the actual user ID of the bot owner
 
 app = Client("watermark_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -46,7 +45,7 @@ async def handle_owner_commands(client: Client, message: Message):
         response = f"Source Group: {source_group}\nTarget Group: {target_group}"
         await message.reply(response)
 
-@app.on_message(filters.group(source_group) & filters.media)
+@app.on_message(filters.chat(lambda c: c.username == source_group) & filters.media)
 async def handle_media(client: Client, message: Message):
     if not target_group:
         await message.reply("Target group is not set. Please set it using the /settarget command in PM.")
@@ -61,7 +60,7 @@ async def handle_media(client: Client, message: Message):
     ])
     
     # Store file path in the message context
-    await message.reply("Click the button below to upload this media to the target group:", reply_markup=keyboard, reply_to_message_id=message.message_id, reply_to_message=file_path)
+    await message.reply("Click the button below to upload this media to the target group:", reply_markup=keyboard, reply_to_message_id=message.message_id)
 
 @app.on_callback_query(filters.regex("upload_media"))
 async def upload_media_callback(client: Client, callback_query):
@@ -71,10 +70,8 @@ async def upload_media_callback(client: Client, callback_query):
         return
 
     # Retrieve file path from message context
-    file_path = message.reply_to_message.reply_to_message
-    if not file_path:
-        await callback_query.message.reply("No media file found. Please try again.")
-        return
+    original_message = await client.get_messages(callback_query.message.chat.id, message.reply_to_message_id)
+    file_path = await client.download_media(original_message)
 
     # Open the image file and add a watermark
     with Image.open(file_path) as img:
