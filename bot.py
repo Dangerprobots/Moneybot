@@ -1,139 +1,109 @@
 from pyrogram import Client, filters
+from pyrogram.types import Message
 from PIL import Image, ImageDraw, ImageFont
-from moviepy.editor import VideoFileClip
-import io
 import os
-import logging
+import json
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("my_bot")
-
-# Replace these with your actual values
+# Your provided API credentials
 api_id = "1474940"
 api_hash = "779e8d2b32ef76d0b7a11fb5f132a6b6"
 bot_token = "7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI"
 
-# Initialize the bot
 app = Client("my_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 
-# Store group IDs in memory
+# Initialize a dictionary to store group IDs
 group_ids = {
-    "source": None,
-    "target": None
+    'source_group_id': None,
+    'destination_group_id': None
 }
 
-# Set the bot owner ID
-bot_owner_id = 6248131995
+# Load stored group IDs from a file if it exists
+try:
+    with open("group_ids.json", "r") as f:
+        group_ids.update(json.load(f))
+except FileNotFoundError:
+    pass
 
-@app.on_message(filters.private & filters.user(bot_owner_id))
-async def handle_pm(client, message):
-    """
-    Handle private messages from the bot owner to set source and target group IDs.
-    """
-    global group_ids
+@app.on_message(filters.private & filters.text)
+async def handle_pm(client, message: Message):
+    bot_owner_id = 6248131995  # Replace with your user ID
 
-    text = message.text
-    if text.startswith("/setsource"):
-        try:
-            group_ids["source"] = int(text.split()[1])
-            await message.reply_text(f"Source group ID set to: {group_ids['source']}")
-            logger.info(f"Source group ID updated to {group_ids['source']}")
-        except IndexError:
-            await message.reply_text("Please provide a group ID after the command.")
-        except ValueError:
-            await message.reply_text("Invalid group ID format. Please provide a numeric ID.")
+    if message.from_user.id != bot_owner_id:
+        await message.reply("You are not authorized to use this bot.")
+        return
+
+    text = message.text.strip()
     
-    elif text.startswith("/settarget"):
-        try:
-            group_ids["target"] = int(text.split()[1])
-            await message.reply_text(f"Target group ID set to: {group_ids['target']}")
-            logger.info(f"Target group ID updated to {group_ids['target']}")
-        except IndexError:
-            await message.reply_text("Please provide a group ID after the command.")
-        except ValueError:
-            await message.reply_text("Invalid group ID format. Please provide a numeric ID.")
-
-def add_watermark_image(input_image_path, output_image_path, watermark_text):
-    """
-    Add a watermark to an image.
-    """
-    with Image.open(input_image_path) as im:
-        watermark = Image.new("RGBA", im.size, (0, 0, 0, 0))
-        draw = ImageDraw.Draw(watermark, "RGBA")
+    if text.startswith("/set_source"):
+        _, group_id = text.split()
+        group_ids['source_group_id'] = int(group_id)
+        await message.reply(f"Source group ID set to {group_id}")
         
-        # Add watermark text
-        font = ImageFont.load_default()
-        text_bbox = draw.textbbox((0, 0), watermark_text, font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        position = (im.size[0] - text_width - 10, im.size[1] - text_height - 10)
-        draw.text(position, watermark_text, fill=(255, 255, 255, 128), font=font)
+    elif text.startswith("/set_destination"):
+        _, group_id = text.split()
+        group_ids['destination_group_id'] = int(group_id)
+        await message.reply(f"Destination group ID set to {group_id}")
         
-        watermarked = Image.alpha_composite(im.convert("RGBA"), watermark)
-        # Convert to RGB before saving as JPEG
-        watermarked.convert("RGB").save(output_image_path, "JPEG")
-
-def add_watermark_video(input_video_path, output_video_path, watermark_text):
-    """
-    Add a watermark to a video.
-    """
-    def watermark_frame(frame):
-        """Add watermark to each frame of the video."""
-        img = Image.fromarray(frame)
-        watermark = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        draw = ImageDraw.Draw(watermark, "RGBA")
-        
-        # Add watermark text
-        font = ImageFont.load_default()
-        text_bbox = draw.textbbox((0, 0), watermark_text, font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        position = (img.size[0] - text_width - 10, img.size[1] - text_height - 10)
-        draw.text(position, watermark_text, fill=(255, 255, 255, 128), font=font)
-        
-        img = Image.alpha_composite(img.convert("RGBA"), watermark)
-        return img.convert("RGB")
+    elif text == "/get_ids":
+        source_id = group_ids.get('source_group_id', 'Not set')
+        destination_id = group_ids.get('destination_group_id', 'Not set')
+        response = f"Source Group ID: {source_id}\nDestination Group ID: {destination_id}"
+        await message.reply(response)
     
-    clip = VideoFileClip(input_video_path)
-    watermarked_clip = clip.fl_image(watermark_frame)
-    watermarked_clip.write_videofile(output_video_path, codec='libx264')
+    elif text == "/save_ids":
+        with open("group_ids.json", "w") as f:
+            json.dump(group_ids, f)
+        await message.reply("Group IDs saved to file.")
+    
+    elif text == "/load_ids":
+        try:
+            with open("group_ids.json", "r") as f:
+                group_ids.update(json.load(f))
+            await message.reply("Group IDs loaded from file.")
+        except FileNotFoundError:
+            await message.reply("No saved file found.")
 
-@app.on_message(filters.group)
-async def handle_media(client, message):
-    """
-    Handle media messages in the source group, adding watermark and forwarding to the target group.
-    """
-    if group_ids["source"] and group_ids["target"]:
-        if message.chat.id == group_ids["source"] and message.media:
-            try:
-                # Print message attributes for debugging
-                logger.info(f"Message object: {message}")
-                
-                # Download the media file
-                downloaded_file = await client.download_media(message, file_name="downloaded_media")
-                
-                if message.photo:  # Handle images
-                    output_file = "watermarked_image.jpg"
-                    add_watermark_image(downloaded_file, output_file, "Watermark Text")
-                    await client.send_photo(group_ids["target"], photo=output_file)
-                
-                elif message.video:  # Handle videos
-                    output_file = "watermarked_video.mp4"
-                    add_watermark_video(downloaded_file, output_file, "Watermark Text")
-                    await client.send_video(group_ids["target"], video=output_file)
-                
-                # Check if message.id exists and delete the media from the source group
-                if message.id:  # Use message.id instead of message.message_id
-                    await client.delete_messages(group_ids["source"], message_ids=message.id)
-                
-                # Clean up local files
-                os.remove(downloaded_file)
-                os.remove(output_file)
+@app.on_message(filters.chat(lambda c: c.id == group_ids.get('source_group_id')) & filters.media)
+async def handle_media(client, message: Message):
+    if not group_ids['source_group_id'] or not group_ids['destination_group_id']:
+        return
 
-                logger.info(f"Media message {message.id} processed and forwarded.")
-            except Exception as e:
-                logger.error(f"An error occurred: {e}")
+    media = message.photo or message.video or message.document
+    if media:
+        file_id = media.file_id
+        # Download media
+        downloaded_media = await app.download_media(file_id)
 
-# Start the bot
+        # Add watermark
+        watermarked_media_path = add_watermark(downloaded_media)
+
+        # Send media to the destination group
+        await app.send_document(group_ids['destination_group_id'], watermarked_media_path)
+
+        # Delete the original message
+        await app.delete_messages(group_ids['source_group_id'], message.message_id)
+
+def add_watermark(media_path):
+    if media_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+        with Image.open(media_path) as img:
+            # Create a drawing context
+            draw = ImageDraw.Draw(img)
+            # Define watermark text and font
+            watermark_text = "Your Watermark"
+            font = ImageFont.load_default()
+            text_width, text_height = draw.textsize(watermark_text, font)
+            # Positioning watermark in bottom-right corner
+            width, height = img.size
+            x = width - text_width - 10
+            y = height - text_height - 10
+            # Add text to image
+            draw.text((x, y), watermark_text, font=font)
+            # Save watermarked image
+            watermarked_path = "watermarked_" + os.path.basename(media_path)
+            img.save(watermarked_path)
+            return watermarked_path
+    else:
+        # For simplicity, this example does not handle video watermarking
+        return media_path  # Return the original path if not an image
+
 app.run()
