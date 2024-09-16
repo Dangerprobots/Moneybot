@@ -33,14 +33,20 @@ async def add_watermark(image: Image.Image, text: str) -> Image.Image:
 
 @app.on_message(filters.private & filters.user(OWNER_ID))
 async def handle_owner_commands(client: Client, message: Message):
-    global source_group, target_group
+    logging.info("Received message: %s", message)
+
+    if not message.text:
+        logging.warning("Received message with no text: %s", message)
+        return
 
     if message.text.startswith("/setsource"):
+        global source_group
         source_group = message.text.split(" ", 1)[1]
         logging.info("Source group set to: %s", source_group)
         await message.reply(f"Source group set to: {source_group}")
 
     elif message.text.startswith("/settarget"):
+        global target_group
         target_group = message.text.split(" ", 1)[1]
         logging.info("Target group set to: %s", target_group)
         await message.reply(f"Target group set to: {target_group}")
