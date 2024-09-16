@@ -65,13 +65,13 @@ async def handle_media(client, message):
                     await client.forward_messages(
                         chat_id=group_ids["target"],
                         from_chat_id=group_ids["source"],
-                        message_ids=message.message_id
+                        message_ids=message.id
                     )
                     
                     # Optionally, delete the media from the source group
                     await client.delete_messages(
                         chat_id=group_ids["source"],
-                        message_ids=message.message_id
+                        message_ids=message.id
                     )
 
                     # Notify in the target group (optional)
