@@ -100,6 +100,7 @@ def add_watermark_video(input_video_path, output_video_path, watermark_text):
         clip = VideoFileClip(input_video_path)
         watermarked_clip = clip.fl_image(watermark_frame)
         watermarked_clip.write_videofile(output_video_path, codec='libx264')
+        print(f"Video saved successfully: {output_video_path}")  # Debugging line
     except Exception as e:
         print(f"Error processing video: {e}")  # Debugging line
 
@@ -126,7 +127,7 @@ async def handle_media(client, message):
                     await client.send_video(group_ids["target"], video=output_file)
                 
                 # Delete original message
-                if message.message_id:  # Corrected message ID attribute
+                if message.message_id:
                     await client.delete_messages(group_ids["source"], message_ids=[message.message_id])
                 
                 # Clean up local files
