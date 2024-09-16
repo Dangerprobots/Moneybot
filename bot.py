@@ -56,19 +56,22 @@ async def handle_media(client: Client, message: Message):
         return
     
     logging.info("Received media: %s", message)
-
+    
     try:
         file_path = await client.download_media(message)
         logging.info("Downloaded media to: %s", file_path)
+
+        if not file_path:
+            logging.error("Failed to download media.")
+            return
         
-        # Prepare inline keyboard
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("Upload to Target Group", callback_data="upload_media")]
         ])
         
         await message.reply("Click the button below to upload this media to the target group:", reply_markup=keyboard, reply_to_message_id=message.message_id)
-        
-        # Delete the media from source group
+
+        # Attempt to delete the media from the source group
         await client.delete_messages(message.chat.id, message.message_id)
         logging.info("Deleted media from source group")
 
@@ -88,6 +91,10 @@ async def upload_media_callback(client: Client, callback_query):
         original_message = await client.get_messages(callback_query.message.chat.id, message.reply_to_message_id)
         file_path = await client.download_media(original_message)
         
+        if not file_path:
+            logging.error("Failed to download media for uploading.")
+            return
+
         logging.info("Processing file: %s", file_path)
         
         with Image.open(file_path) as img:
