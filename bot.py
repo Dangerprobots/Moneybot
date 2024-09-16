@@ -6,9 +6,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Replace these with your actual values
-api_id = "YOUR_API_ID"       # Obtain from https://my.telegram.org/
-api_hash = "YOUR_API_HASH"   # Obtain from https://my.telegram.org/
-bot_token = "YOUR_BOT_TOKEN" # Obtain from BotFather
+api_id = "1474940"       # Obtain from https://my.telegram.org/
+api_hash = "779e8d2b32ef76d0b7a11fb5f132a6b6"   # Obtain from https://my.telegram.org/
+bot_token = "7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI" # Obtain from BotFather
 
 # Initialize the bot
 app = Client("my_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
@@ -20,7 +20,7 @@ group_ids = {
 }
 
 # Set the bot owner ID
-bot_owner_id = YOUR_TELEGRAM_USER_ID  # Replace with your Telegram user ID
+bot_owner_id = 6248131995 # Replace with your Telegram user ID
 
 @app.on_message(filters.private & filters.user(bot_owner_id))
 async def handle_pm(client, message):
