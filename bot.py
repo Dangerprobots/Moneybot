@@ -72,7 +72,7 @@ async def upload_media_callback(client: Client, callback_query):
     # Retrieve file path from message context
     original_message = await client.get_messages(callback_query.message.chat.id, message.reply_to_message_id)
     file_path = await client.download_media(original_message)
-
+    
     # Open the image file and add a watermark
     with Image.open(file_path) as img:
         watermarked_img = await add_watermark(img, WATERMARK_TEXT)
