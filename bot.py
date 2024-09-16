@@ -20,15 +20,19 @@ group_ids = {
 }
 
 # Set the bot owner ID
-bot_owner_id = 6248131995 # Replace with your Telegram user ID
+bot_owner_id = 6248131995  # Replace with your Telegram user ID
 
 @app.on_message(filters.private & filters.user(bot_owner_id))
 async def handle_pm(client, message):
+    """
+    Handle private messages from the bot owner to set source and target group IDs.
+    """
     global group_ids
 
-    if message.text.startswith("/setsource"):
+    text = message.text
+    if text.startswith("/setsource"):
         try:
-            group_ids["source"] = int(message.text.split()[1])
+            group_ids["source"] = int(text.split()[1])
             await message.reply_text(f"Source group ID set to: {group_ids['source']}")
             logger.info(f"Source group ID updated to {group_ids['source']}")
         except IndexError:
@@ -36,9 +40,9 @@ async def handle_pm(client, message):
         except ValueError:
             await message.reply_text("Invalid group ID format. Please provide a numeric ID.")
     
-    elif message.text.startswith("/settarget"):
+    elif text.startswith("/settarget"):
         try:
-            group_ids["target"] = int(message.text.split()[1])
+            group_ids["target"] = int(text.split()[1])
             await message.reply_text(f"Target group ID set to: {group_ids['target']}")
             logger.info(f"Target group ID updated to {group_ids['target']}")
         except IndexError:
@@ -46,19 +50,33 @@ async def handle_pm(client, message):
         except ValueError:
             await message.reply_text("Invalid group ID format. Please provide a numeric ID.")
 
-@app.on_message(filters.group & filters.chat(lambda _, __, chat: chat.id == group_ids["source"]))
+@app.on_message(filters.group)
 async def handle_media(client, message):
+    """
+    Handle media messages in the source group, forwarding them to the target group
+    and optionally deleting them from the source group.
+    """
     if group_ids["source"] and group_ids["target"]:
-        if message.media:
+        if message.chat.id == group_ids["source"] and message.media:
             try:
                 # Forward media to target group
-                await client.forward_messages(chat_id=group_ids["target"], from_chat_id=group_ids["source"], message_ids=message.message_id)
+                await client.forward_messages(
+                    chat_id=group_ids["target"],
+                    from_chat_id=group_ids["source"],
+                    message_ids=message.message_id
+                )
                 
                 # Optionally, delete the media from the source group
-                await client.delete_messages(chat_id=group_ids["source"], message_ids=message.message_id)
+                await client.delete_messages(
+                    chat_id=group_ids["source"],
+                    message_ids=message.message_id
+                )
 
                 # Notify in the target group (optional)
-                await client.send_message(group_ids["target"], "Media has been forwarded and source message deleted.")
+                await client.send_message(
+                    group_ids["target"],
+                    "Media has been forwarded and source message deleted."
+                )
                 logger.info(f"Media message {message.message_id} forwarded and deleted.")
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
