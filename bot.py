@@ -51,20 +51,27 @@ async def handle_owner_commands(client: Client, message: Message):
 
 @app.on_message(filters.chat(lambda c: c.username == source_group) & filters.media)
 async def handle_media(client: Client, message: Message):
-    logging.info("Received media: %s", message)
     if not target_group:
         await message.reply("Target group is not set. Please set it using the /settarget command in PM.")
         return
     
+    logging.info("Received media: %s", message)
+
     try:
         file_path = await client.download_media(message)
         logging.info("Downloaded media to: %s", file_path)
         
+        # Prepare inline keyboard
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("Upload to Target Group", callback_data="upload_media")]
         ])
         
         await message.reply("Click the button below to upload this media to the target group:", reply_markup=keyboard, reply_to_message_id=message.message_id)
+        
+        # Delete the media from source group
+        await client.delete_messages(message.chat.id, message.message_id)
+        logging.info("Deleted media from source group")
+
     except Exception as e:
         logging.error("Error handling media: %s", str(e))
 
