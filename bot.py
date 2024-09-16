@@ -103,6 +103,11 @@ async def handle_media(client, message: Message):
             downloaded_media = await app.download_media(file_id)
             logger.info(f"Downloaded media: {downloaded_media}")
 
+            # Check if the file exists before processing
+            if not os.path.exists(downloaded_media):
+                logger.error(f"File {downloaded_media} does not exist.")
+                return
+
             # Add watermark if it's an image
             if downloaded_media.lower().endswith(('.png', '.jpg', '.jpeg')):
                 watermarked_media_path = add_watermark(downloaded_media)
