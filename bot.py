@@ -1,10 +1,9 @@
-#API_ID = 
-#API_HASH = ""
 import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from PIL import Image, ImageDraw, ImageFont
 import io
+import os
 
 # Replace these with your values
 API_ID = '5282591'
@@ -14,9 +13,9 @@ OWNER_ID = 6248131995 # Replace with the actual user ID of the bot owner
 
 app = Client("watermark_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Initialize channels as None
-source_channel = None
-target_channel = None
+# Initialize groups as None
+source_group = None
+target_group = None
 
 # Define watermark text
 WATERMARK_TEXT = "Sample Watermark"
@@ -33,59 +32,62 @@ async def add_watermark(image: Image.Image, text: str) -> Image.Image:
 
 @app.on_message(filters.private & filters.user(OWNER_ID))
 async def handle_owner_commands(client: Client, message: Message):
-    global source_channel, target_channel
+    global source_group, target_group
 
     if message.text.startswith("/setsource"):
-        source_channel = message.text.split(" ", 1)[1]
-        await message.reply(f"Source channel set to: {source_channel}")
+        source_group = message.text.split(" ", 1)[1]
+        await message.reply(f"Source group set to: {source_group}")
 
     elif message.text.startswith("/settarget"):
-        target_channel = message.text.split(" ", 1)[1]
-        await message.reply(f"Target channel set to: {target_channel}")
+        target_group = message.text.split(" ", 1)[1]
+        await message.reply(f"Target group set to: {target_group}")
 
-    elif message.text == "/getchannels":
-        response = f"Source Channel: {source_channel}\nTarget Channel: {target_channel}"
+    elif message.text == "/getgroups":
+        response = f"Source Group: {source_group}\nTarget Group: {target_group}"
         await message.reply(response)
 
-@app.on_message(filters.chat(source_channel) & filters.media)
+@app.on_message(filters.group(source_group) & filters.media)
 async def handle_media(client: Client, message: Message):
-    if not target_channel:
-        await message.reply("Target channel is not set. Please set it using the /settarget command in PM.")
+    if not target_group:
+        await message.reply("Target group is not set. Please set it using the /settarget command in PM.")
         return
     
     # Download the media file
-    file = await client.download_media(message)
+    file_path = await client.download_media(message)
     
     # Prepare inline keyboard
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Upload to Target Channel", callback_data="upload_media")]
+        [InlineKeyboardButton("Upload to Target Group", callback_data="upload_media")]
     ])
     
-    # Send a message with the button
-    await message.reply("Click the button below to upload this media to the target channel:", reply_markup=keyboard)
+    # Store file path in the message context
+    await message.reply("Click the button below to upload this media to the target group:", reply_markup=keyboard, reply_to_message_id=message.message_id, reply_to_message=file_path)
 
 @app.on_callback_query(filters.regex("upload_media"))
 async def upload_media_callback(client: Client, callback_query):
     message = callback_query.message
-    if not target_channel:
-        await callback_query.message.reply("Target channel is not set. Please set it using the /settarget command in PM.")
+    if not target_group:
+        await callback_query.message.reply("Target group is not set. Please set it using the /settarget command in PM.")
         return
 
-    # Download the media file again (if needed)
-    file = await client.download_media(message.reply_to_message)
-    
+    # Retrieve file path from message context
+    file_path = message.reply_to_message.reply_to_message
+    if not file_path:
+        await callback_query.message.reply("No media file found. Please try again.")
+        return
+
     # Open the image file and add a watermark
-    with Image.open(file) as img:
+    with Image.open(file_path) as img:
         watermarked_img = await add_watermark(img, WATERMARK_TEXT)
         buffer = io.BytesIO()
         watermarked_img.save(buffer, format="PNG")
         buffer.seek(0)
         
-        # Upload the watermarked image to the target channel
-        await client.send_photo(target_channel, buffer)
+        # Upload the watermarked image to the target group
+        await client.send_photo(target_group, buffer)
         
         # Inform user
-        await callback_query.message.reply("Media uploaded to the target channel.")
+        await callback_query.message.reply("Media uploaded to the target group.")
 
 if __name__ == "__main__":
     app.run()
