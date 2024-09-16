@@ -107,6 +107,9 @@ async def handle_media(client, message):
     if group_ids["source"] and group_ids["target"]:
         if message.chat.id == group_ids["source"] and message.media:
             try:
+                # Print message attributes for debugging
+                logger.info(f"Message object: {message}")
+                
                 # Download the media file
                 downloaded_file = await client.download_media(message, file_name="downloaded_media")
                 
@@ -120,7 +123,7 @@ async def handle_media(client, message):
                     add_watermark_video(downloaded_file, output_file, "Watermark Text")
                     await client.send_video(group_ids["target"], video=output_file)
                 
-                # Optionally, delete the media from the source group
+                # Check if message.id exists and delete the media from the source group
                 if message.id:  # Use message.id instead of message.message_id
                     await client.delete_messages(group_ids["source"], message_ids=message.id)
                 
