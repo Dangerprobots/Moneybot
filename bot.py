@@ -141,14 +141,14 @@ async def handle_media(client, message):
                     await client.send_video(group_ids["target"], video=output_file)
                 
                 # Delete original message
-                if message.message_id:
-                    await client.delete_messages(group_ids["source"], message_ids=[message.message_id])
+                if hasattr(message, 'id'):
+                    await client.delete_messages(group_ids["source"], message_ids=[message.id])
                 
                 # Clean up local files
                 os.remove(downloaded_file)
                 os.remove(output_file)
 
-                logger.info(f"Media message {message.message_id} processed and forwarded.")
+                logger.info(f"Media message {message.id} processed and forwarded.")
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
                 # Ensure files are cleaned up in case of error
