@@ -101,12 +101,18 @@ def add_watermark_video(input_video_path, output_video_path, watermark_text):
             return frame  # Return unmodified frame on error
 
     try:
+        # Ensure input file exists
+        if not os.path.isfile(input_video_path):
+            raise FileNotFoundError(f"Input video file {input_video_path} not found.")
+
         clip = VideoFileClip(input_video_path)
         watermarked_clip = clip.fl_image(watermark_frame)
-        # Ensure the output directory exists
+        
+        # Ensure output directory exists
         output_dir = os.path.dirname(output_video_path)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
+        
         watermarked_clip.write_videofile(output_video_path, codec='libx264', audio_codec='aac')
         print(f"Video saved successfully: {output_video_path}")  # Debugging line
     except Exception as e:
@@ -122,8 +128,8 @@ async def handle_media(client, message):
             try:
                 # Download the media file
                 downloaded_file = await client.download_media(message, file_name="downloaded_media")
-                
                 output_file = "watermarked_media"
+                
                 if message.photo:
                     output_file += ".jpg"
                     add_watermark_image(downloaded_file, output_file, "Watermark Text")
