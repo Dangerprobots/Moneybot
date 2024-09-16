@@ -59,25 +59,29 @@ async def handle_media(client, message):
     if group_ids["source"] and group_ids["target"]:
         if message.chat.id == group_ids["source"] and message.media:
             try:
-                # Forward media to target group
-                await client.forward_messages(
-                    chat_id=group_ids["target"],
-                    from_chat_id=group_ids["source"],
-                    message_ids=message.message_id
-                )
-                
-                # Optionally, delete the media from the source group
-                await client.delete_messages(
-                    chat_id=group_ids["source"],
-                    message_ids=message.message_id
-                )
+                # Ensure the message has the required attributes
+                if hasattr(message, 'message_id'):
+                    # Forward media to target group
+                    await client.forward_messages(
+                        chat_id=group_ids["target"],
+                        from_chat_id=group_ids["source"],
+                        message_ids=message.message_id
+                    )
+                    
+                    # Optionally, delete the media from the source group
+                    await client.delete_messages(
+                        chat_id=group_ids["source"],
+                        message_ids=message.message_id
+                    )
 
-                # Notify in the target group (optional)
-                await client.send_message(
-                    group_ids["target"],
-                    "Media has been forwarded and source message deleted."
-                )
-                logger.info(f"Media message {message.message_id} forwarded and deleted.")
+                    # Notify in the target group (optional)
+                    await client.send_message(
+                        group_ids["target"],
+                        "Media has been forwarded and source message deleted."
+                    )
+                    logger.info(f"Media message {message.message_id} forwarded and deleted.")
+                else:
+                    logger.error("The message object does not have 'message_id'.")
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
 
