@@ -6,7 +6,7 @@ import json
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Your provided API credentials
@@ -27,7 +27,7 @@ try:
     with open("group_ids.json", "r") as f:
         group_ids.update(json.load(f))
 except FileNotFoundError:
-    pass
+    logger.info("No saved group IDs file found.")
 
 @app.on_message(filters.private & filters.text)
 async def handle_pm(client, message: Message):
@@ -87,6 +87,7 @@ async def handle_pm(client, message: Message):
 def save_group_ids():
     with open("group_ids.json", "w") as f:
         json.dump(group_ids, f)
+    logger.info("Group IDs saved to file.")
 
 @app.on_message(filters.chat(lambda c: c.id == group_ids.get('source_group_id')) & (filters.photo | filters.video | filters.document))
 async def handle_media(client, message: Message):
