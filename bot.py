@@ -60,18 +60,18 @@ async def handle_media(client, message):
         if message.chat.id == group_ids["source"] and message.media:
             try:
                 # Ensure the message has the required attributes
-                if message.message_id:  # Check if message_id exists
+                if message.id:  # Use message.id which should be available
                     # Forward media to target group
                     await client.forward_messages(
                         chat_id=group_ids["target"],
                         from_chat_id=group_ids["source"],
-                        message_ids=message.message_id  # Use message.message_id
+                        message_ids=message.id  # Use message.id
                     )
                     
                     # Optionally, delete the media from the source group
                     await client.delete_messages(
                         chat_id=group_ids["source"],
-                        message_ids=message.message_id  # Use message.message_id
+                        message_ids=message.id  # Use message.id
                     )
 
                     # Notify in the target group (optional)
@@ -79,9 +79,9 @@ async def handle_media(client, message):
                         group_ids["target"],
                         "Media has been forwarded and source message deleted."
                     )
-                    logger.info(f"Media message {message.message_id} forwarded and deleted.")
+                    logger.info(f"Media message {message.id} forwarded and deleted.")
                 else:
-                    logger.error("The message object does not have 'message_id'.")
+                    logger.error("The message object does not have 'id'.")
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
 
