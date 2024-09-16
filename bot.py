@@ -60,18 +60,18 @@ async def handle_media(client, message):
         if message.chat.id == group_ids["source"] and message.media:
             try:
                 # Ensure the message has the required attributes
-                if hasattr(message, 'message_id'):
+                if message.message_id:  # Check if message_id exists
                     # Forward media to target group
                     await client.forward_messages(
                         chat_id=group_ids["target"],
                         from_chat_id=group_ids["source"],
-                        message_ids=message.id
+                        message_ids=message.message_id  # Use message.message_id
                     )
                     
                     # Optionally, delete the media from the source group
                     await client.delete_messages(
                         chat_id=group_ids["source"],
-                        message_ids=message.id
+                        message_ids=message.message_id  # Use message.message_id
                     )
 
                     # Notify in the target group (optional)
