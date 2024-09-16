@@ -64,14 +64,11 @@ def add_watermark_image(input_image_path, output_image_path, watermark_text):
         
         # Add watermark text
         font = ImageFont.load_default()
-        text_bbox = draw.textbbox((0, 0), watermark_text, font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
+        text_width, text_height = draw.textsize(watermark_text, font)
         position = (im.size[0] - text_width - 10, im.size[1] - text_height - 10)
         draw.text(position, watermark_text, fill=(255, 255, 255, 128), font=font)
         
         watermarked = Image.alpha_composite(im.convert("RGBA"), watermark)
-        # Convert to RGB before saving as JPEG
         watermarked.convert("RGB").save(output_image_path, "JPEG")
 
 def add_watermark_video(input_video_path, output_video_path, watermark_text):
@@ -80,24 +77,31 @@ def add_watermark_video(input_video_path, output_video_path, watermark_text):
     """
     def watermark_frame(frame):
         """Add watermark to each frame of the video."""
-        img = Image.fromarray(frame)
-        watermark = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        draw = ImageDraw.Draw(watermark, "RGBA")
-        
-        # Add watermark text
-        font = ImageFont.load_default()
-        text_bbox = draw.textbbox((0, 0), watermark_text, font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        position = (img.size[0] - text_width - 10, img.size[1] - text_height - 10)
-        draw.text(position, watermark_text, fill=(255, 255, 255, 128), font=font)
-        
-        img = Image.alpha_composite(img.convert("RGBA"), watermark)
-        return img.convert("RGB")
-    
-    clip = VideoFileClip(input_video_path)
-    watermarked_clip = clip.fl_image(watermark_frame)
-    watermarked_clip.write_videofile(output_video_path, codec='libx264')
+        try:
+            img = Image.fromarray(frame)
+            print(f"Frame size: {img.size}")  # Debugging line
+
+            watermark = Image.new("RGBA", img.size, (0, 0, 0, 0))
+            draw = ImageDraw.Draw(watermark, "RGBA")
+            
+            # Add watermark text
+            font = ImageFont.load_default()
+            text_width, text_height = draw.textsize(watermark_text, font)
+            position = (img.size[0] - text_width - 10, img.size[1] - text_height - 10)
+            draw.text(position, watermark_text, fill=(255, 255, 255, 128), font=font)
+            
+            img = Image.alpha_composite(img.convert("RGBA"), watermark)
+            return img.convert("RGB")
+        except Exception as e:
+            print(f"Error processing frame: {e}")  # Debugging line
+            return frame  # Return unmodified frame on error
+
+    try:
+        clip = VideoFileClip(input_video_path)
+        watermarked_clip = clip.fl_image(watermark_frame)
+        watermarked_clip.write_videofile(output_video_path, codec='libx264')
+    except Exception as e:
+        print(f"Error processing video: {e}")  # Debugging line
 
 @app.on_message(filters.group)
 async def handle_media(client, message):
@@ -107,33 +111,36 @@ async def handle_media(client, message):
     if group_ids["source"] and group_ids["target"]:
         if message.chat.id == group_ids["source"] and message.media:
             try:
-                # Print message attributes for debugging
-                logger.info(f"Message object: {message}")
-                
                 # Download the media file
                 downloaded_file = await client.download_media(message, file_name="downloaded_media")
                 
-                if message.photo:  # Handle images
-                    output_file = "watermarked_image.jpg"
+                output_file = "watermarked_media"
+                if message.photo:
+                    output_file += ".jpg"
                     add_watermark_image(downloaded_file, output_file, "Watermark Text")
                     await client.send_photo(group_ids["target"], photo=output_file)
                 
-                elif message.video:  # Handle videos
-                    output_file = "watermarked_video.mp4"
+                elif message.video:
+                    output_file += ".mp4"
                     add_watermark_video(downloaded_file, output_file, "Watermark Text")
                     await client.send_video(group_ids["target"], video=output_file)
                 
-                # Check if message.id exists and delete the media from the source group
-                if message.id:  # Use message.id instead of message.message_id
-                    await client.delete_messages(group_ids["source"], message_ids=message.id)
+                # Delete original message
+                if message.message_id:  # Corrected message ID attribute
+                    await client.delete_messages(group_ids["source"], message_ids=message.message_id)
                 
                 # Clean up local files
                 os.remove(downloaded_file)
                 os.remove(output_file)
 
-                logger.info(f"Media message {message.id} processed and forwarded.")
+                logger.info(f"Media message {message.message_id} processed and forwarded.")
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
+                # Ensure files are cleaned up in case of error
+                if os.path.exists(downloaded_file):
+                    os.remove(downloaded_file)
+                if os.path.exists(output_file):
+                    os.remove(output_file)
 
 # Start the bot
 app.run()
