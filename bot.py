@@ -98,8 +98,8 @@ def add_watermark_video(input_video_path, output_video_path, watermark_text):
     clip = VideoFileClip(input_video_path)
     watermarked_clip = clip.fl_image(watermark_frame)
     watermarked_clip.write_videofile(output_video_path, codec='libx264')
-    @app.on_message(filters.group)
-    async def handle_media(client, message):
+@app.on_message(filters.group)
+async def handle_media(client, message):
     """
     Handle media messages in the source group, adding watermark and forwarding to the target group.
     """
