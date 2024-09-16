@@ -51,50 +51,50 @@ async def handle_owner_commands(client: Client, message: Message):
 
 @app.on_message(filters.chat(lambda c: c.username == source_group) & filters.media)
 async def handle_media(client: Client, message: Message):
+    logging.info("Received media: %s", message)
     if not target_group:
         await message.reply("Target group is not set. Please set it using the /settarget command in PM.")
         return
     
-    # Download the media file
-    file_path = await client.download_media(message)
-    logging.info("Downloaded media to: %s", file_path)
-    
-    # Prepare inline keyboard
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Upload to Target Group", callback_data="upload_media")]
-    ])
-    
-    # Store file path in the message context
-    await message.reply("Click the button below to upload this media to the target group:", reply_markup=keyboard, reply_to_message_id=message.message_id)
+    try:
+        file_path = await client.download_media(message)
+        logging.info("Downloaded media to: %s", file_path)
+        
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("Upload to Target Group", callback_data="upload_media")]
+        ])
+        
+        await message.reply("Click the button below to upload this media to the target group:", reply_markup=keyboard, reply_to_message_id=message.message_id)
+    except Exception as e:
+        logging.error("Error handling media: %s", str(e))
 
 @app.on_callback_query(filters.regex("upload_media"))
 async def upload_media_callback(client: Client, callback_query):
-    logging.info("Handling callback query: %s", callback_query.data)
+    logging.info("Received callback query: %s", callback_query.data)
     
     message = callback_query.message
     if not target_group:
         await callback_query.message.reply("Target group is not set. Please set it using the /settarget command in PM.")
         return
 
-    # Retrieve file path from message context
-    original_message = await client.get_messages(callback_query.message.chat.id, message.reply_to_message_id)
-    file_path = await client.download_media(original_message)
-    
-    logging.info("Processing file: %s", file_path)
-    
-    # Open the image file and add a watermark
-    with Image.open(file_path) as img:
-        watermarked_img = await add_watermark(img, WATERMARK_TEXT)
-        buffer = io.BytesIO()
-        watermarked_img.save(buffer, format="PNG")
-        buffer.seek(0)
+    try:
+        original_message = await client.get_messages(callback_query.message.chat.id, message.reply_to_message_id)
+        file_path = await client.download_media(original_message)
         
-        # Upload the watermarked image to the target group
-        await client.send_photo(target_group, buffer)
-        logging.info("Uploaded media to target group: %s", target_group)
+        logging.info("Processing file: %s", file_path)
         
-        # Inform user
-        await callback_query.message.reply("Media uploaded to the target group.")
+        with Image.open(file_path) as img:
+            watermarked_img = await add_watermark(img, WATERMARK_TEXT)
+            buffer = io.BytesIO()
+            watermarked_img.save(buffer, format="PNG")
+            buffer.seek(0)
+            
+            await client.send_photo(target_group, buffer)
+            logging.info("Uploaded media to target group: %s", target_group)
+            
+            await callback_query.message.reply("Media uploaded to the target group.")
+    except Exception as e:
+        logging.error("Error uploading media: %s", str(e))
 
 if __name__ == "__main__":
     logging.info("Starting bot...")
