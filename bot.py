@@ -88,7 +88,7 @@ def save_group_ids():
     with open("group_ids.json", "w") as f:
         json.dump(group_ids, f)
 
-@app.on_message(filters.chat(lambda c: c.id == group_ids.get('source_group_id')) & filters.media)
+@app.on_message(filters.chat(lambda c: c.id == group_ids.get('source_group_id')) & (filters.photo | filters.video | filters.document))
 async def handle_media(client, message: Message):
     if not group_ids['source_group_id'] or not group_ids['destination_group_id']:
         logger.warning("Group IDs are not set properly.")
@@ -102,9 +102,12 @@ async def handle_media(client, message: Message):
             downloaded_media = await app.download_media(file_id)
             logger.info(f"Downloaded media: {downloaded_media}")
 
-            # Add watermark
-            watermarked_media_path = add_watermark(downloaded_media)
-            logger.info(f"Watermarked media saved at: {watermarked_media_path}")
+            # Add watermark if it's an image
+            if downloaded_media.lower().endswith(('.png', '.jpg', '.jpeg')):
+                watermarked_media_path = add_watermark(downloaded_media)
+                logger.info(f"Watermarked media saved at: {watermarked_media_path}")
+            else:
+                watermarked_media_path = downloaded_media
 
             # Send media to the destination group
             await app.send_document(group_ids['destination_group_id'], watermarked_media_path)
@@ -141,7 +144,6 @@ def add_watermark(media_path):
             logger.error(f"Error adding watermark: {e}")
             return media_path  # Return original path if there's an error
     else:
-        # For simplicity, this example does not handle video watermarking
         return media_path  # Return the original path if not an image
 
 app.run()
