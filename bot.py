@@ -1,7 +1,7 @@
 import logging
 from telegram import Update, InputFile
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import json
 import os
 
@@ -11,7 +11,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Replace with your bot token
-TOKEN = '7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI'
+TOKEN = 'YOUR_BOT_TOKEN'
 CONFIG_FILE = 'config.json'
 
 def load_config():
@@ -74,10 +74,23 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
         await file.download_to_drive('temp.jpg')
 
         # Open the image and add a watermark
-        with Image.open('temp.jpg') as img:
-            watermark = Image.new('RGBA', img.size, (0, 0, 0, 0))
-            img.paste(watermark, (0, 0), watermark)
-            img.save('watermarked_temp.jpg')
+        with Image.open('temp.jpg').convert('RGBA') as img:
+            # Create a drawing context
+            draw = ImageDraw.Draw(img)
+            text = "Watermark"
+            font = ImageFont.load_default()  # Use default PIL font
+            textwidth, textheight = draw.textsize(text, font)
+            
+            # Position the text in the bottom right corner
+            width, height = img.size
+            x = width - textwidth - 10
+            y = height - textheight - 10
+            
+            # Draw text on the image
+            draw.text((x, y), text, font=font, fill=(255, 255, 255, 128))  # White text with transparency
+            
+            # Save the image with watermark
+            img.save('watermarked_temp.jpg', format='JPEG')
 
         # Delete the original media
         await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
