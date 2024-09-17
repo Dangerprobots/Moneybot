@@ -1,4 +1,5 @@
-pyrogram
+#pyrogram
 tgcrypto
 pillow
 moviepy
+python-telegram-bot
