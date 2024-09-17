@@ -1,11 +1,17 @@
+import logging
 from telegram import Update, InputFile
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from PIL import Image
 import json
 import os
 
+# Set up logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Replace with your bot token
-TOKEN = '7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI'
+TOKEN = 'YOUR_BOT_TOKEN'
 CONFIG_FILE = 'config.json'
 
 def load_config():
@@ -31,8 +37,10 @@ async def set_source_group_id(update: Update, context: CallbackContext) -> None:
             config['source_group_id'] = group_id
             save_config(config)
             await update.message.reply_text(f'Source group ID set to {group_id}.')
+            logger.info(f"Source group ID set to {group_id}")
         except ValueError:
             await update.message.reply_text('Invalid group ID format.')
+            logger.error("Invalid group ID format")
     else:
         await update.message.reply_text('Usage: /set_source_group_id <group_id>')
 
@@ -44,8 +52,10 @@ async def set_target_group_id(update: Update, context: CallbackContext) -> None:
             config['target_group_id'] = group_id
             save_config(config)
             await update.message.reply_text(f'Target group ID set to {group_id}.')
+            logger.info(f"Target group ID set to {group_id}")
         except ValueError:
             await update.message.reply_text('Invalid group ID format.')
+            logger.error("Invalid group ID format")
     else:
         await update.message.reply_text('Usage: /set_target_group_id <group_id>')
 
@@ -59,6 +69,7 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
         return
 
     if update.message.chat_id == source_group_id and update.message.photo:
+        logger.info(f"Processing photo from group {source_group_id}")
         file = await context.bot.get_file(update.message.photo[-1].file_id)
         await file.download_to_drive('temp.jpg')
 
@@ -70,10 +81,12 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
 
         # Delete the original media
         await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
+        logger.info(f"Deleted original message in group {source_group_id}")
 
         # Send the watermarked media to another group
         with open('watermarked_temp.jpg', 'rb') as f:
             await context.bot.send_photo(chat_id=target_group_id, photo=InputFile(f, 'watermarked_temp.jpg'))
+            logger.info(f"Sent watermarked photo to group {target_group_id}")
 
 def main() -> None:
     application = Application.builder().token(TOKEN).build()
