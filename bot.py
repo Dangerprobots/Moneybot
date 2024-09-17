@@ -137,9 +137,9 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
                 # Add a watermark to the video using ffmpeg
                 watermark_text = "Watermark"
                 ffmpeg_command = [
-                    'ffmpeg', '-i', 'temp.mp4', 
+                    'ffmpeg', '-i', 'temp.mp4',
                     '-vf', f"drawtext=text='{watermark_text}':x=10:y=H-th-10:fontsize=24:fontcolor=white@0.5",
-                    '-codec:a', 'copy', 'watermarked_temp.mp4'
+                    '-codec:a', 'copy', '-y', 'watermarked_temp.mp4'  # Added '-y' to overwrite
                 ]
                 subprocess.run(ffmpeg_command, check=True)
 
