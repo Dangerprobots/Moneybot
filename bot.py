@@ -74,7 +74,11 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
         await file.download_to_drive('temp.jpg')
 
         # Open the image and add a watermark
-        with Image.open('temp.jpg').convert('RGBA') as img:
+        with Image.open('temp.jpg') as img:
+            # Convert to RGB if necessary
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+
             # Create a drawing context
             draw = ImageDraw.Draw(img)
 
