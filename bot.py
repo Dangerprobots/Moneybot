@@ -5,7 +5,7 @@ import json
 import os
 
 # Replace with your bot token
-TOKEN = 'YOUR_BOT_TOKEN'
+TOKEN = '7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI'
 CONFIG_FILE = 'config.json'
 
 def load_config():
