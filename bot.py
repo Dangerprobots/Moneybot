@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 import time
-from telegram import Update, InputFile
+from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from PIL import Image, ImageDraw, ImageFont
 
@@ -21,7 +21,7 @@ def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
             return json.load(f)
-    return {'source_group_id': None, 'target_group_id': None}
+    return {'source_group_id': None, 'target_group_id': None, 'update_channel_id': None}
 
 def save_config(config):
     """Save configuration to a file."""
@@ -29,7 +29,7 @@ def save_config(config):
         json.dump(config, f)
 
 async def start(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text('Bot is running! Use /set_source_group_id and /set_target_group_id to set group IDs.')
+    await update.message.reply_text('Bot is running! Use /set_source_group_id, /set_target_group_id, and /set_update_channel_id to set group IDs.')
 
 async def set_source_group_id(update: Update, context: CallbackContext) -> None:
     if context.args:
@@ -61,6 +61,21 @@ async def set_target_group_id(update: Update, context: CallbackContext) -> None:
     else:
         await update.message.reply_text('Usage: /set_target_group_id <group_id>')
 
+async def set_update_channel_id(update: Update, context: CallbackContext) -> None:
+    if context.args:
+        try:
+            channel_id = int(context.args[0])
+            config = load_config()
+            config['update_channel_id'] = channel_id
+            save_config(config)
+            await update.message.reply_text(f'Update channel ID set to {channel_id}.')
+            logger.info(f"Update channel ID set to {channel_id}")
+        except ValueError:
+            await update.message.reply_text('Invalid channel ID format.')
+            logger.error("Invalid channel ID format")
+    else:
+        await update.message.reply_text('Usage: /set_update_channel_id <channel_id>')
+
 def retry_request(func, retries=3, delay=5):
     for _ in range(retries):
         try:
@@ -75,12 +90,17 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
         config = load_config()
         source_group_id = config.get('source_group_id')
         target_group_id = config.get('target_group_id')
+        update_channel_id = config.get('update_channel_id')
 
-        if source_group_id is None or target_group_id is None:
-            await update.message.reply_text('Source or target group ID is not set. Use /set_source_group_id and /set_target_group_id to configure.')
+        if source_group_id is None or target_group_id is None or update_channel_id is None:
+            await update.message.reply_text('Source, target group ID, or update channel ID is not set. Use /set_source_group_id, /set_target_group_id, and /set_update_channel_id to configure.')
             return
 
         if update.message.chat_id == source_group_id:
+            caption = "Check out the updated media!"
+            button = InlineKeyboardButton(text="Subscribe for Updates", url=f"t.me/{update_channel_id}")
+            keyboard = InlineKeyboardMarkup([[button]])
+
             if update.message.photo:
                 logger.info(f"Processing photo from group {source_group_id}")
                 file = await retry_request(lambda: context.bot.get_file(update.message.photo[-1].file_id))
@@ -110,7 +130,7 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
 
                 # Send the watermarked media to another group
                 with open('watermarked_temp.jpg', 'rb') as f:
-                    await retry_request(lambda: context.bot.send_photo(chat_id=target_group_id, photo=InputFile(f, 'watermarked_temp.jpg')))
+                    await retry_request(lambda: context.bot.send_photo(chat_id=target_group_id, photo=InputFile(f, 'watermarked_temp.jpg'), caption=caption, reply_markup=keyboard))
                     logger.info(f"Sent watermarked photo to group {target_group_id}")
 
             elif update.message.video:
@@ -133,8 +153,9 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
 
                 # Send the watermarked media to another group
                 with open('watermarked_temp.mp4', 'rb') as f:
-                    await retry_request(lambda: context.bot.send_video(chat_id=target_group_id, video=InputFile(f, 'watermarked_temp.mp4')))
+                    await retry_request(lambda: context.bot.send_video(chat_id=target_group_id, video=InputFile(f, 'watermarked_temp.mp4'), caption=caption, reply_markup=keyboard))
                     logger.info(f"Sent watermarked video to group {target_group_id}")
+
     except Exception as e:
         logger.error(f"Failed to handle media: {e}")
 
@@ -145,6 +166,7 @@ def main() -> None:
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('set_source_group_id', set_source_group_id))
     application.add_handler(CommandHandler('set_target_group_id', set_target_group_id))
+    application.add_handler(CommandHandler('set_update_channel_id', set_update_channel_id))
     application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_media))
     application.add_handler(MessageHandler(filters.VIDEO & filters.ChatType.GROUPS, handle_media))
 
