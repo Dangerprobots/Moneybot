@@ -52,17 +52,22 @@ def add_watermark_to_video(video_path):
 @app.on_message(filters.channel)
 async def handle_media(client, message):
     watermarked_video_path = None
+    video_file = None
     try:
+        print(f"Received message: {message}")  # Log the received message
+
         if message.chat.id == UPLOAD_CHANNEL_ID:
             if message.photo:
+                print("Processing photo...")  # Log photo processing
                 photo = await message.download()
                 with open(photo, 'rb') as f:
                     watermarked_image = add_watermark_to_image(f.read())
                 # Send the watermarked image to the watermark channel
                 await client.send_photo(chat_id=WATERMARK_CHANNEL_ID, photo=watermarked_image)
                 os.remove(photo)
-                
+            
             elif message.video:
+                print("Processing video...")  # Log video processing
                 video_file = await message.download()
                 watermarked_video_path = add_watermark_to_video(video_file)
                 # Send the watermarked video to the watermark channel
@@ -74,7 +79,7 @@ async def handle_media(client, message):
         print(f"An error occurred: {e}")
     
     finally:
-        if os.path.exists(video_file):
+        if video_file and os.path.exists(video_file):
             os.remove(video_file)
         if watermarked_video_path and os.path.exists(watermarked_video_path):
             os.remove(watermarked_video_path)
