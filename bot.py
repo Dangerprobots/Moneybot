@@ -5,7 +5,7 @@ import subprocess
 import time
 from telegram import Update, InputFile
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from telegram.helpers import Request
+from telegram.utils.request import Request  # Correct import for Request
 from PIL import Image, ImageDraw, ImageFont
 
 # Set up logging
