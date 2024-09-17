@@ -1,88 +1,90 @@
-from pyrogram import Client, filters
-from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip
+from telegram import Update, InputFile
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from PIL import Image
-import io
-import numpy as np
+import json
 import os
 
-API_ID = "1474940"
-API_HASH = "779e8d2b32ef76d0b7a11fb5f132a6b6"
-BOT_TOKEN = "7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI"
-UPLOAD_CHANNEL_ID = -1002184464315  # Channel to upload original media
-WATERMARK_CHANNEL_ID = -1002494998139  # Channel to upload watermarked media
-WATERMARK_LOGO_PATH = 'justforwardme1775345.png'  # Path to your watermark logo
+# Replace with your bot token
+TOKEN = 'YOUR_BOT_TOKEN'
+CONFIG_FILE = 'config.json'
 
-app = Client("watermark_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+def load_config():
+    """Load configuration from a file."""
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    return {'source_group_id': None, 'target_group_id': None}
 
-def prepare_logo():
-    with Image.open(WATERMARK_LOGO_PATH).convert("RGBA") as logo:
-        datas = logo.getdata()
-        new_data = [
-            (255, 255, 255, 0) if item[0] < 50 and item[1] < 50 and item[2] < 50 else item
-            for item in datas
-        ]
-        logo.putdata(new_data)
-        return logo
+def save_config(config):
+    """Save configuration to a file."""
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f)
 
-def add_watermark_to_image(image_bytes):
-    with Image.open(io.BytesIO(image_bytes)).convert("RGBA") as img:
-        logo = prepare_logo()
-        logo = logo.resize((int(logo.width * 0.3), int(logo.height * 0.3)))
-        logo_width, logo_height = logo.size
-        img_width, img_height = img.size
-        x = img_width - logo_width - 30
-        y = img_height - logo_height - 30
-        img.paste(logo, (x, y), logo)
-        output = io.BytesIO()
-        img.save(output, format='PNG')
-        output.seek(0)
-        return output
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text('Bot is running! Use /set_source_group_id and /set_target_group_id to set group IDs.')
 
-def add_watermark_to_video(video_path):
-    clip = VideoFileClip(video_path)
-    logo = prepare_logo()
-    logo = logo.resize((int(logo.width * 0.3), int(logo.height * 0.3)))
-    logo_np = np.array(logo)
-    logo_clip = ImageClip(logo_np).set_duration(clip.duration).set_pos(('left', 'center'))
-    watermarked_clip = CompositeVideoClip([clip, logo_clip])
-    output_path = 'watermarked_video.mp4'
-    watermarked_clip.write_videofile(output_path, codec='libx264', audio_codec='aac')
-    return output_path
+def set_source_group_id(update: Update, context: CallbackContext) -> None:
+    if context.args:
+        try:
+            group_id = int(context.args[0])
+            config = load_config()
+            config['source_group_id'] = group_id
+            save_config(config)
+            update.message.reply_text(f'Source group ID set to {group_id}.')
+        except ValueError:
+            update.message.reply_text('Invalid group ID format.')
+    else:
+        update.message.reply_text('Usage: /set_source_group_id <group_id>')
 
-@app.on_message(filters.channel)
-async def handle_media(client, message):
-    watermarked_video_path = None
-    video_file = None
-    try:
-        print(f"Received message: {message}")  # Log the received message
+def set_target_group_id(update: Update, context: CallbackContext) -> None:
+    if context.args:
+        try:
+            group_id = int(context.args[0])
+            config = load_config()
+            config['target_group_id'] = group_id
+            save_config(config)
+            update.message.reply_text(f'Target group ID set to {group_id}.')
+        except ValueError:
+            update.message.reply_text('Invalid group ID format.')
+    else:
+        update.message.reply_text('Usage: /set_target_group_id <group_id>')
 
-        if message.chat.id == UPLOAD_CHANNEL_ID:
-            if message.photo:
-                print("Processing photo...")  # Log photo processing
-                photo = await message.download()
-                with open(photo, 'rb') as f:
-                    watermarked_image = add_watermark_to_image(f.read())
-                # Send the watermarked image to the watermark channel
-                await client.send_photo(chat_id=WATERMARK_CHANNEL_ID, photo=watermarked_image)
-                os.remove(photo)
-            
-            elif message.video:
-                print("Processing video...")  # Log video processing
-                video_file = await message.download()
-                watermarked_video_path = add_watermark_to_video(video_file)
-                # Send the watermarked video to the watermark channel
-                with open(watermarked_video_path, 'rb') as f:
-                    await client.send_video(chat_id=WATERMARK_CHANNEL_ID, video=f)
-                os.remove(video_file)
-    
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    
-    finally:
-        if video_file and os.path.exists(video_file):
-            os.remove(video_file)
-        if watermarked_video_path and os.path.exists(watermarked_video_path):
-            os.remove(watermarked_video_path)
-        await message.delete()
+def handle_media(update: Update, context: CallbackContext) -> None:
+    config = load_config()
+    source_group_id = config.get('source_group_id')
+    target_group_id = config.get('target_group_id')
 
-app.run()
+    if source_group_id is None or target_group_id is None:
+        update.message.reply_text('Source or target group ID is not set. Use /set_source_group_id and /set_target_group_id to configure.')
+        return
+
+    if update.message.chat_id == source_group_id and update.message.photo:
+        file = context.bot.get_file(update.message.photo[-1].file_id)
+        file.download('temp.jpg')
+
+        # Open the image and add a watermark
+        with Image.open('temp.jpg') as img:
+            watermark = Image.new('RGBA', img.size, (0, 0, 0, 0))
+            img.paste(watermark, (0, 0), watermark)
+            img.save('watermarked_temp.jpg')
+
+        # Delete the original media
+        context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
+
+        # Send the watermarked media to another group
+        context.bot.send_photo(chat_id=target_group_id, photo=InputFile('watermarked_temp.jpg'))
+
+def main() -> None:
+    updater = Updater(TOKEN)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler('start', start))
+    dp.add_handler(CommandHandler('set_source_group_id', set_source_group_id))
+    dp.add_handler(CommandHandler('set_target_group_id', set_target_group_id))
+    dp.add_handler(MessageHandler(Filters.photo & Filters.chat_type.groups, handle_media))
+
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
