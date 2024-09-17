@@ -4,6 +4,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from PIL import Image, ImageDraw, ImageFont
 import json
 import os
+import subprocess  # For calling ffmpeg
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -68,48 +69,62 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text('Source or target group ID is not set. Use /set_source_group_id and /set_target_group_id to configure.')
         return
 
-    if update.message.chat_id == source_group_id and update.message.photo:
-        logger.info(f"Processing photo from group {source_group_id}")
-        file = await context.bot.get_file(update.message.photo[-1].file_id)
-        await file.download_to_drive('temp.jpg')
+    if update.message.chat_id == source_group_id:
+        if update.message.photo:
+            logger.info(f"Processing photo from group {source_group_id}")
+            file = await context.bot.get_file(update.message.photo[-1].file_id)
+            await file.download_to_drive('temp.jpg')
 
-        # Open the image and add a watermark
-        with Image.open('temp.jpg') as img:
-            # Convert to RGB if necessary
-            if img.mode != 'RGB':
-                img = img.convert('RGB')
+            # Open the image and add a watermark
+            with Image.open('temp.jpg') as img:
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
 
-            # Create a drawing context
-            draw = ImageDraw.Draw(img)
+                draw = ImageDraw.Draw(img)
+                text = "Watermark"
+                try:
+                    font = ImageFont.truetype("arial.ttf", 36)
+                except IOError:
+                    font = ImageFont.load_default()
+                
+                textwidth, textheight = draw.textsize(text, font)
+                width, height = img.size
+                x = width - textwidth - 10
+                y = height - textheight - 10
+                draw.text((x, y), text, font=font, fill=(255, 255, 255, 128))
+                img.save('watermarked_temp.jpg', format='JPEG')
 
-            # Define watermark text and font
-            text = "Watermark"
-            try:
-                font = ImageFont.truetype("arial.ttf", 36)  # Use a TTF font file if available
-            except IOError:
-                font = ImageFont.load_default()  # Fallback to default font if TTF is not available
-            
-            textwidth, textheight = draw.textsize(text, font)
-            
-            # Calculate text position (bottom right corner with padding)
-            width, height = img.size
-            x = width - textwidth - 10
-            y = height - textheight - 10
-            
-            # Draw text on the image
-            draw.text((x, y), text, font=font, fill=(255, 255, 255, 128))  # White text with transparency
-            
-            # Save the watermarked image
-            img.save('watermarked_temp.jpg', format='JPEG')
+            # Delete the original media
+            await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
+            logger.info(f"Deleted original message in group {source_group_id}")
 
-        # Delete the original media
-        await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
-        logger.info(f"Deleted original message in group {source_group_id}")
+            # Send the watermarked media to another group
+            with open('watermarked_temp.jpg', 'rb') as f:
+                await context.bot.send_photo(chat_id=target_group_id, photo=InputFile(f, 'watermarked_temp.jpg'))
+                logger.info(f"Sent watermarked photo to group {target_group_id}")
 
-        # Send the watermarked media to another group
-        with open('watermarked_temp.jpg', 'rb') as f:
-            await context.bot.send_photo(chat_id=target_group_id, photo=InputFile(f, 'watermarked_temp.jpg'))
-            logger.info(f"Sent watermarked photo to group {target_group_id}")
+        elif update.message.video:
+            logger.info(f"Processing video from group {source_group_id}")
+            file = await context.bot.get_file(update.message.video.file_id)
+            await file.download_to_drive('temp.mp4')
+
+            # Add a watermark to the video using ffmpeg
+            watermark_text = "Watermark"
+            ffmpeg_command = [
+                'ffmpeg', '-i', 'temp.mp4', 
+                '-vf', f"drawtext=text='{watermark_text}':x=10:y=H-th-10:fontsize=24:fontcolor=white@0.5",
+                '-codec:a', 'copy', 'watermarked_temp.mp4'
+            ]
+            subprocess.run(ffmpeg_command, check=True)
+
+            # Delete the original media
+            await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
+            logger.info(f"Deleted original message in group {source_group_id}")
+
+            # Send the watermarked media to another group
+            with open('watermarked_temp.mp4', 'rb') as f:
+                await context.bot.send_video(chat_id=target_group_id, video=InputFile(f, 'watermarked_temp.mp4'))
+                logger.info(f"Sent watermarked video to group {target_group_id}")
 
 def main() -> None:
     application = Application.builder().token(TOKEN).build()
@@ -118,6 +133,7 @@ def main() -> None:
     application.add_handler(CommandHandler('set_source_group_id', set_source_group_id))
     application.add_handler(CommandHandler('set_target_group_id', set_target_group_id))
     application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_media))
+    application.add_handler(MessageHandler(filters.VIDEO & filters.ChatType.GROUPS, handle_media))
 
     application.run_polling()
 
