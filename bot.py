@@ -1,5 +1,5 @@
 from telegram import Update, InputFile
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackContext
 from PIL import Image
 import json
 import os
@@ -81,7 +81,7 @@ def main() -> None:
     dp.add_handler(CommandHandler('start', start))
     dp.add_handler(CommandHandler('set_source_group_id', set_source_group_id))
     dp.add_handler(CommandHandler('set_target_group_id', set_target_group_id))
-    dp.add_handler(MessageHandler(Filters.photo & Filters.chat_type.groups, handle_media))
+    dp.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_media))
 
     updater.start_polling()
     updater.idle()
