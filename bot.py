@@ -5,7 +5,6 @@ import subprocess
 import time
 from telegram import Update, InputFile
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from telegram.utils.request import Request  # Correct import for Request
 from PIL import Image, ImageDraw, ImageFont
 
 # Set up logging
@@ -140,10 +139,8 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
         logger.error(f"Failed to handle media: {e}")
 
 def main() -> None:
-    # Use Request object to configure timeout
-    request = Request(con_pool_size=8, read_timeout=60, connect_timeout=60)
-    
-    application = Application.builder().token(TOKEN).request(request).build()
+    # Set up the application without request customization
+    application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('set_source_group_id', set_source_group_id))
