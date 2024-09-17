@@ -21,7 +21,7 @@ def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r') as f:
             return json.load(f)
-    return {'source_group_id': None, 'target_group_id': None, 'update_channel_id': None}
+    return {'source_group_id': None, 'target_group_id': None, 'update_channel_username': None}
 
 def save_config(config):
     """Save configuration to a file."""
@@ -29,7 +29,7 @@ def save_config(config):
         json.dump(config, f)
 
 async def start(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text('Bot is running! Use /set_source_group_id, /set_target_group_id, and /set_update_channel_id to set group IDs.')
+    await update.message.reply_text('Bot is running! Use /set_source_group_id, /set_target_group_id, and /set_update_channel_username to set group IDs and update channel username.')
 
 async def set_source_group_id(update: Update, context: CallbackContext) -> None:
     if context.args:
@@ -61,20 +61,16 @@ async def set_target_group_id(update: Update, context: CallbackContext) -> None:
     else:
         await update.message.reply_text('Usage: /set_target_group_id <group_id>')
 
-async def set_update_channel_id(update: Update, context: CallbackContext) -> None:
+async def set_update_channel_username(update: Update, context: CallbackContext) -> None:
     if context.args:
-        try:
-            channel_id = int(context.args[0])
-            config = load_config()
-            config['update_channel_id'] = channel_id
-            save_config(config)
-            await update.message.reply_text(f'Update channel ID set to {channel_id}.')
-            logger.info(f"Update channel ID set to {channel_id}")
-        except ValueError:
-            await update.message.reply_text('Invalid channel ID format.')
-            logger.error("Invalid channel ID format")
+        username = context.args[0].lstrip('@')  # Remove leading '@' if present
+        config = load_config()
+        config['update_channel_username'] = username
+        save_config(config)
+        await update.message.reply_text(f'Update channel username set to @{username}.')
+        logger.info(f"Update channel username set to @{username}")
     else:
-        await update.message.reply_text('Usage: /set_update_channel_id <channel_id>')
+        await update.message.reply_text('Usage: /set_update_channel_username <username>')
 
 def retry_request(func, retries=3, delay=5):
     for _ in range(retries):
@@ -90,15 +86,15 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
         config = load_config()
         source_group_id = config.get('source_group_id')
         target_group_id = config.get('target_group_id')
-        update_channel_id = config.get('update_channel_id')
+        update_channel_username = config.get('update_channel_username')
 
-        if source_group_id is None or target_group_id is None or update_channel_id is None:
-            await update.message.reply_text('Source, target group ID, or update channel ID is not set. Use /set_source_group_id, /set_target_group_id, and /set_update_channel_id to configure.')
+        if source_group_id is None or target_group_id is None or update_channel_username is None:
+            await update.message.reply_text('Source, target group ID, or update channel username is not set. Use /set_source_group_id, /set_target_group_id, and /set_update_channel_username to configure.')
             return
 
         if update.message.chat_id == source_group_id:
             caption = "Check out the updated media!"
-            button = InlineKeyboardButton(text="Subscribe for Updates", url=f"t.me/{update_channel_id}")
+            button = InlineKeyboardButton(text="Subscribe for Updates", url=f"https://t.me/{update_channel_username}")
             keyboard = InlineKeyboardMarkup([[button]])
 
             if update.message.photo:
@@ -166,7 +162,7 @@ def main() -> None:
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('set_source_group_id', set_source_group_id))
     application.add_handler(CommandHandler('set_target_group_id', set_target_group_id))
-    application.add_handler(CommandHandler('set_update_channel_id', set_update_channel_id))
+    application.add_handler(CommandHandler('set_update_channel_username', set_update_channel_username))
     application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_media))
     application.add_handler(MessageHandler(filters.VIDEO & filters.ChatType.GROUPS, handle_media))
 
