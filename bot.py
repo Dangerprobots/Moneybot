@@ -11,7 +11,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Replace with your bot token
-TOKEN = 'YOUR_BOT_TOKEN'
+TOKEN = '7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI'
 CONFIG_FILE = 'config.json'
 
 def load_config():
@@ -77,11 +77,17 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
         with Image.open('temp.jpg').convert('RGBA') as img:
             # Create a drawing context
             draw = ImageDraw.Draw(img)
+
+            # Define watermark text and font
             text = "Watermark"
-            font = ImageFont.load_default()  # Use default PIL font
+            try:
+                font = ImageFont.truetype("arial.ttf", 36)  # Use a TTF font file if available
+            except IOError:
+                font = ImageFont.load_default()  # Fallback to default font if TTF is not available
+            
             textwidth, textheight = draw.textsize(text, font)
             
-            # Position the text in the bottom right corner
+            # Calculate text position (bottom right corner with padding)
             width, height = img.size
             x = width - textwidth - 10
             y = height - textheight - 10
@@ -89,7 +95,7 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
             # Draw text on the image
             draw.text((x, y), text, font=font, fill=(255, 255, 255, 128))  # White text with transparency
             
-            # Save the image with watermark
+            # Save the watermarked image
             img.save('watermarked_temp.jpg', format='JPEG')
 
         # Delete the original media
