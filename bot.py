@@ -13,7 +13,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Replace with your bot token and owner ID
-TOKEN = 'YOUR_BOT_TOKEN'
+TOKEN = '7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI'
 OWNER_ID = 6248131995  # Replace with your Telegram user ID
 CONFIG_FILE = 'config.json'
 
