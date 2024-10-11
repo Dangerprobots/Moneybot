@@ -154,9 +154,23 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
                     return
                 await retry_request(lambda: file.download_to_drive('temp.mp4'))
 
+                # Get the duration of the video
+                duration_command = [
+                    'ffmpeg', '-i', 'temp.mp4'
+                ]
+                result = subprocess.run(duration_command, stderr=subprocess.PIPE, text=True)
+                duration_str = result.stderr.split('Duration: ')[1].split(',')[0]
+                h, m, s = map(float, duration_str.split(':'))
+                total_duration = h * 3600 + m * 60 + s
+
+                # Calculate the start time for the center 10 seconds
+                start_time = max(0, (total_duration - 10) / 2)
+
                 watermark_text = "Watermark"
                 ffmpeg_command = [
                     'ffmpeg', '-i', 'temp.mp4',
+                    '-ss', str(start_time),  # Start time for center extraction
+                    '-t', '10',  # Duration to extract
                     '-vf', f"drawtext=text='{watermark_text}':x=10:y=H-th-10:fontsize=24:fontcolor=white@0.5",
                     '-codec:a', 'copy', '-y', 'watermarked_temp.mp4'
                 ]
@@ -180,9 +194,4 @@ def main() -> None:
     application.add_handler(CommandHandler('set_target_group_id', set_target_group_id))
     application.add_handler(CommandHandler('set_update_channel_username', set_update_channel_username))
     application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_media))
-    application.add_handler(MessageHandler(filters.VIDEO & filters.ChatType.GROUPS, handle_media))
-
-    application.run_polling()
-
-if __name__ == '__main__':
-    main()
+    application.add_handler
