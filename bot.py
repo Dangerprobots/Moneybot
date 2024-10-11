@@ -12,8 +12,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Replace with your bot token and owner ID
-TOKEN = '7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI'
+# Bot token and owner ID
+TOKEN = '7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI'  # Replace with your bot token
 OWNER_ID = 6248131995  # Replace with your Telegram user ID
 CONFIG_FILE = 'config.json'
 
@@ -113,7 +113,7 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
             await update.message.reply_text('Source, target group ID, or update channel username is not set.')
             return
 
-        if update.message.chat_id == source_group_id:
+        if update.message.chat.id == source_group_id:
             caption = "Check out the updated media!"
             button = InlineKeyboardButton(text="Subscribe for Updates", url=f"https://t.me/{update_channel_username}")
             keyboard = InlineKeyboardMarkup([[button]])
@@ -140,7 +140,7 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
                     draw.text((x, y), text, font=font, fill=(255, 255, 255, 128))
                     img.save('watermarked_temp.jpg', format='JPEG')
 
-                await retry_request(lambda: context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id))
+                await retry_request(lambda: context.bot.delete_message(chat_id=update.message.chat.id, message_id=update.message.message_id))
                 logger.info(f"Deleted original message in group {source_group_id}")
 
                 with open('watermarked_temp.jpg', 'rb') as f:
@@ -155,9 +155,7 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
                 await retry_request(lambda: file.download_to_drive('temp.mp4'))
 
                 # Get the duration of the video
-                duration_command = [
-                    'ffmpeg', '-i', 'temp.mp4'
-                ]
+                duration_command = ['ffmpeg', '-i', 'temp.mp4']
                 result = subprocess.run(duration_command, stderr=subprocess.PIPE, text=True)
                 duration_str = result.stderr.split('Duration: ')[1].split(',')[0]
                 h, m, s = map(float, duration_str.split(':'))
@@ -176,7 +174,7 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
                 ]
                 subprocess.run(ffmpeg_command, check=True)
 
-                await retry_request(lambda: context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id))
+                await retry_request(lambda: context.bot.delete_message(chat_id=update.message.chat.id, message_id=update.message.message_id))
                 logger.info(f"Deleted original message in group {source_group_id}")
 
                 with open('watermarked_temp.mp4', 'rb') as f:
@@ -194,4 +192,7 @@ def main() -> None:
     application.add_handler(CommandHandler('set_target_group_id', set_target_group_id))
     application.add_handler(CommandHandler('set_update_channel_username', set_update_channel_username))
     application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_media))
-    application.add_handler
+    application.add_handler(MessageHandler(filters.VIDEO & filters.ChatType.GROUPS, handle_media))  # Add this line
+
+    # Start polling
+  
