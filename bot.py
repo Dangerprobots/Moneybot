@@ -13,7 +13,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Replace with your bot token and owner ID
-TOKEN = '7543714729:AAHLRF3GyvJ9OJwhF2jaV5xDlmYgj1-4JfI'
+TOKEN = 'YOUR_BOT_TOKEN'
 OWNER_ID = 6248131995  # Replace with your Telegram user ID
 CONFIG_FILE = 'config.json'
 
@@ -154,9 +154,23 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
                     return
                 await retry_request(lambda: file.download_to_drive('temp.mp4'))
 
+                # Get the video duration
+                duration_command = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', 'temp.mp4']
+                duration = float(subprocess.check_output(duration_command).strip())
+
+                # Calculate the start time to extract the center 7 seconds
+                start_time = max((duration - 7) / 2, 0)
+
+                # Create a command to extract the center 7 seconds
+                extract_command = [
+                    'ffmpeg', '-i', 'temp.mp4', '-ss', str(start_time), '-t', '7',
+                    '-c', 'copy', '-y', 'temp_center.mp4'
+                ]
+                subprocess.run(extract_command, check=True)
+
                 watermark_text = "Watermark"
                 ffmpeg_command = [
-                    'ffmpeg', '-i', 'temp.mp4',
+                    'ffmpeg', '-i', 'temp_center.mp4',
                     '-vf', f"drawtext=text='{watermark_text}':x=10:y=H-th-10:fontsize=24:fontcolor=white@0.5",
                     '-codec:a', 'copy', '-y', 'watermarked_temp.mp4'
                 ]
