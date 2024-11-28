@@ -44,64 +44,6 @@ async def start(update: Update, context: CallbackContext) -> None:
     )
     await update.message.reply_text(welcome_message)
 
-async def set_source_group_id(update: Update, context: CallbackContext) -> None:
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("You are not authorized to use this command.")
-        return
-
-    if context.args:
-        try:
-            group_id = int(context.args[0])
-            config = load_config()
-            config['source_group_id'] = group_id
-            save_config(config)
-            await update.message.reply_text(f'Source group ID set to {group_id}.')
-        except ValueError:
-            await update.message.reply_text('Invalid group ID format.')
-    else:
-        await update.message.reply_text('Usage: /set_source_group_id <group_id>')
-
-async def set_target_group_id(update: Update, context: CallbackContext) -> None:
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("You are not authorized to use this command.")
-        return
-
-    if context.args:
-        try:
-            group_id = int(context.args[0])
-            config = load_config()
-            config['target_group_id'] = group_id
-            save_config(config)
-            await update.message.reply_text(f'Target group ID set to {group_id}.')
-        except ValueError:
-            await update.message.reply_text('Invalid group ID format.')
-    else:
-        await update.message.reply_text('Usage: /set_target_group_id <group_id>')
-
-async def set_update_channel_username(update: Update, context: CallbackContext) -> None:
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("You are not authorized to use this command.")
-        return
-
-    if context.args:
-        username = context.args[0].lstrip('@')
-        config = load_config()
-        config['update_channel_username'] = username
-        save_config(config)
-        await update.message.reply_text(f'Update channel username set to @{username}.')
-    else:
-        await update.message.reply_text('Usage: /set_update_channel_username <username>')
-
-def retry_request(func, retries=3, delay=5):
-    for _ in range(retries):
-        try:
-            return func()
-        except Exception as e:
-            logger.error(f"Error during request: {e}. Retrying in {delay} seconds...")
-            time.sleep(delay)
-    logger.error("Max retries reached. Operation failed.")
-    return None
-
 async def handle_media(update: Update, context: CallbackContext) -> None:
     try:
         config = load_config()
@@ -120,10 +62,8 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
 
             if update.message.photo:
                 logger.info(f"Processing photo from group {source_group_id}")
-                file = await retry_request(lambda: context.bot.get_file(update.message.photo[-1].file_id))
-                if file is None:
-                    return
-                await retry_request(lambda: file.download_to_drive('temp.jpg'))
+                file = await update.message.photo[-1].get_file()
+                await file.download_to_drive('temp.jpg')
 
                 with Image.open('temp.jpg') as img:
                     if img.mode != 'RGB':
@@ -140,19 +80,17 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
                     draw.text((x, y), text, font=font, fill=(255, 255, 255, 128))
                     img.save('watermarked_temp.jpg', format='JPEG')
 
-                await retry_request(lambda: context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id))
+                await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
                 logger.info(f"Deleted original message in group {source_group_id}")
 
                 with open('watermarked_temp.jpg', 'rb') as f:
-                    await retry_request(lambda: context.bot.send_photo(chat_id=target_group_id, photo=InputFile(f, 'watermarked_temp.jpg'), caption=caption, reply_markup=keyboard))
+                    await context.bot.send_photo(chat_id=target_group_id, photo=InputFile(f, 'watermarked_temp.jpg'), caption=caption, reply_markup=keyboard)
                     logger.info(f"Sent watermarked photo to group {target_group_id}")
 
             elif update.message.video:
                 logger.info(f"Processing video from group {source_group_id}")
-                file = await retry_request(lambda: context.bot.get_file(update.message.video.file_id))
-                if file is None:
-                    return
-                await retry_request(lambda: file.download_to_drive('temp.mp4'))
+                file = await update.message.video.get_file()
+                await file.download_to_drive('temp.mp4')
 
                 # Get the video duration
                 duration_command = ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', 'temp.mp4']
@@ -176,11 +114,11 @@ async def handle_media(update: Update, context: CallbackContext) -> None:
                 ]
                 subprocess.run(ffmpeg_command, check=True)
 
-                await retry_request(lambda: context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id))
+                await context.bot.delete_message(chat_id=update.message.chat_id, message_id=update.message.message_id)
                 logger.info(f"Deleted original message in group {source_group_id}")
 
                 with open('watermarked_temp.mp4', 'rb') as f:
-                    await retry_request(lambda: context.bot.send_video(chat_id=target_group_id, video=InputFile(f, 'watermarked_temp.mp4'), caption=caption, reply_markup=keyboard))
+                    await context.bot.send_video(chat_id=target_group_id, video=InputFile(f, 'watermarked_temp.mp4'), caption=caption, reply_markup=keyboard)
                     logger.info(f"Sent watermarked video to group {target_group_id}")
 
     except Exception as e:
