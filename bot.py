@@ -44,6 +44,48 @@ async def start(update: Update, context: CallbackContext) -> None:
     )
     await update.message.reply_text(welcome_message)
 
+async def set_source_group_id(update: Update, context: CallbackContext) -> None:
+    """Set the source group ID."""
+    if update.message.from_user.id != OWNER_ID:
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+    if context.args:
+        source_group_id = context.args[0]
+        config = load_config()
+        config['source_group_id'] = source_group_id
+        save_config(config)
+        await update.message.reply_text(f"Source group ID set to: {source_group_id}")
+    else:
+        await update.message.reply_text("Please provide a valid source group ID.")
+
+async def set_target_group_id(update: Update, context: CallbackContext) -> None:
+    """Set the target group ID."""
+    if update.message.from_user.id != OWNER_ID:
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+    if context.args:
+        target_group_id = context.args[0]
+        config = load_config()
+        config['target_group_id'] = target_group_id
+        save_config(config)
+        await update.message.reply_text(f"Target group ID set to: {target_group_id}")
+    else:
+        await update.message.reply_text("Please provide a valid target group ID.")
+
+async def set_update_channel_username(update: Update, context: CallbackContext) -> None:
+    """Set the update channel username."""
+    if update.message.from_user.id != OWNER_ID:
+        await update.message.reply_text("You are not authorized to use this command.")
+        return
+    if context.args:
+        update_channel_username = context.args[0]
+        config = load_config()
+        config['update_channel_username'] = update_channel_username
+        save_config(config)
+        await update.message.reply_text(f"Update channel username set to: {update_channel_username}")
+    else:
+        await update.message.reply_text("Please provide a valid update channel username.")
+
 async def handle_media(update: Update, context: CallbackContext) -> None:
     try:
         config = load_config()
